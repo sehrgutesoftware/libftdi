@@ -2004,11 +2004,12 @@ int ftdi_write_data_get_chunksize(struct ftdi_context *ftdi, unsigned int *chunk
 /**
     Reads data in chunks (see ftdi_read_data_set_chunksize()) from the chip.
 
-    Automatically strips the two modem status bytes transferred during every read.
+    Writes the status bytes of the first read to the status pointer.
 
     \param ftdi pointer to ftdi_context
     \param buf Buffer to store data in
     \param size Size of the buffer
+    \param status Pointer to store status information in. Must be two bytes.
 
     \retval -666: USB device unavailable
     \retval <0: error code from libusb_bulk_transfer()
@@ -2016,7 +2017,7 @@ int ftdi_write_data_get_chunksize(struct ftdi_context *ftdi, unsigned int *chunk
     \retval >0: number of bytes read
 
 */
-int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size)
+int ftdi_read_data_and_status(struct ftdi_context *ftdi, unsigned char *buf, int size, unsigned short *status)
 {
     int offset = 0, ret, i, num_of_chunks, chunk_remains;
     int packet_size;
@@ -2051,6 +2052,7 @@ int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size)
         // Fix offset
         offset += ftdi->readbuffer_remaining;
     }
+
     // do the actual USB read
     while (offset < size && actual_length > 0)
     {
@@ -2060,6 +2062,10 @@ int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size)
         ret = libusb_bulk_transfer (ftdi->usb_dev, ftdi->out_ep, ftdi->readbuffer, ftdi->readbuffer_chunksize, &actual_length, ftdi->usb_read_timeout);
         if (ret < 0)
             ftdi_error_return(ret, "usb bulk read failed");
+
+        // Write the first two bytes of the first read to the status pointer
+        if (ftdi->readbuffer_offset == 0 && actual_length >= 2)
+            *status = (ftdi->readbuffer[1] << 8) | (ftdi->readbuffer[0] & 0xFF);
 
         if (actual_length > 2)
         {
@@ -2128,6 +2134,27 @@ int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size)
     }
     // never reached
     return -127;
+}
+
+/**
+    Reads data in chunks (see ftdi_read_data_set_chunksize()) from the chip.
+
+    Automatically strips the two modem status bytes transferred during every read.
+
+    \param ftdi pointer to ftdi_context
+    \param buf Buffer to store data in
+    \param size Size of the buffer
+
+    \retval -666: USB device unavailable
+    \retval <0: error code from libusb_bulk_transfer()
+    \retval  0: no data was available
+    \retval >0: number of bytes read
+
+*/
+int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size)
+{
+    unsigned short status;
+    return ftdi_read_data_and_status(ftdi, buf, size, &status);
 }
 
 /**

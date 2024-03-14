@@ -388,6 +388,21 @@ enum ftdi_eeprom_value
     USER_DATA_ADDR     = 57,
 };
 
+enum ftdi_modem_status {
+    CTS   = 0b0000000000010000, // Clear to send
+    DTS   = 0b0000000000100000, // Data set ready
+    RI    = 0b0000000001000000, // Ring indicator
+    RLSD  = 0b0000000010000000, // Receive line signal detect
+    DR    = 0b0000000100000000, // Data ready
+    OE    = 0b0000001000000000, // Overrun error
+    PE    = 0b0000010000000000, // Parity error
+    FE    = 0b0000100000000000, // Framing error
+    BI    = 0b0001000000000000, // Break interrupt
+    THRE  = 0b0010000000000000, // Transmitter holding register
+    TEMT  = 0b0100000000000000, // Transmitter empty
+    RXERR = 0b1000000000000000, // Error in RCVR FIFO
+};
+
 /**
     \brief list of usb devices created by ftdi_usb_find_all()
 */
@@ -573,6 +588,7 @@ extern "C"
                                 enum ftdi_stopbits_type sbit, enum ftdi_parity_type parity,
                                 enum ftdi_break_type break_type);
 
+    int ftdi_read_data_and_status(struct ftdi_context *ftdi, unsigned char *buf, int size, unsigned short *status);
     int ftdi_read_data(struct ftdi_context *ftdi, unsigned char *buf, int size);
     int ftdi_read_data_set_chunksize(struct ftdi_context *ftdi, unsigned int chunksize);
     int ftdi_read_data_get_chunksize(struct ftdi_context *ftdi, unsigned int *chunksize);
